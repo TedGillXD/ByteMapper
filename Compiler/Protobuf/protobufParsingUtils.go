@@ -181,7 +181,7 @@ func ParseProtobuf(lines []string) *Protobuf {
 		lines[index] = strings.TrimSpace(line)
 	}
 
-	var protobufObj *Protobuf
+	protobufObj := &Protobuf{}
 	current1 := 0
 	current2 := 0
 	current1, protobufObj.Syntax = parseSyntax(lines)
