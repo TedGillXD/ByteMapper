@@ -2,6 +2,7 @@ package Protobuf
 
 import (
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -147,6 +148,11 @@ func parseMessage(lines []string, current int) (int, *Message) {
 			}
 		}
 	}
+
+	// sort the message, let all fields arrange ascend
+	sort.Slice(msg.Fields, func(i, j int) bool {
+		return msg.Fields[i].Tag < msg.Fields[j].Tag
+	})
 	return current + 1, msg
 }
 

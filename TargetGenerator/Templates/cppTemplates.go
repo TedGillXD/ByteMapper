@@ -14,6 +14,7 @@ type CppMessage struct {
 	Name                   string
 	NestedMessagesAndEnums []string
 	MessageFields          []CppMessageField
+	TypesString            string
 }
 
 type CppMessageField struct {
@@ -35,19 +36,43 @@ const CppHeaderTemplate = `
 
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <cstdint>
 {{range .Includes}}
 #include <{{.}}>
 {{end}}
 
-namespace {{.Package}} {
+namespace {
+	template<typename... Types>
+	std::vector<std::size_t> getOffsetWithAlignment() {
+		std::vector<std::size_t> offsets;
+		std::size_t currentOffset = 0;
+		std::size_t maxAlignment = 0;
 	
+		auto addOffset = [&](auto... args) {
+			(..., ([&]{
+				std::size_t alignment = alignof(decltype(args));
+				std::size_t size = sizeof(decltype(args));
+				maxAlignment = std::max(maxAlignment, alignment);
+	
+				std::size_t padding = (alignment - currentOffset % alignment) % alignment;
+				currentOffset += padding;
+				offsets.push_back(currentOffset);
+				currentOffset += size;
+			}()));
+		};
+	
+		addOffset(Types()...);
+	
+		return offsets;
+	}
+}	// anonymous namespace
+
+namespace {{.Package}} {
 	// top messages and enums declarations
-	{{range .MessagesAndEnums}}
-	{{.}}
+	{{range .MessagesAndEnums}}{{.}}
 	{{end}}
-
 } // namespace {{.HeaderGuard}}_H
-
 #endif // {{.HeaderGuard}}_H
 `
 
@@ -70,24 +95,29 @@ public:
 // getter and setter
 public:
     {{range .MessageFields}}
-    // Getter for {{.Name}}
-    const {{if .IsRepeatable}}std::vector<{{.Type}}>{{else}}{{.Type}}{{end}}& get_{{.Name}}() const;
-
-    // Setter for {{.Name}}
-    void set_{{.Name}}(const {{if .IsRepeatable}}std::vector<{{.Type}}>&{{else}}{{.Type}}{{end}} value);
+    [[nodiscard]] const {{.Type}}& get_{{.Name}}() const;
+    void set_{{.Name}}({{.Type}} value);
     {{end}}
 
+// metadata of this message
 private:
-	{{range .MessageFields}}
-	{{.Type}} {{.Name}};
+	inline static std::vector<std::size_t> paramOffset = getOffsetWithAlignment<{{.TypesString}}>();
+
+private:
+	{{range .MessageFields}}{{.Type}} {{.Name}};
 	{{end}}
 };
 `
 
 const CppHeaderEnumTemplate = `
 enum class {{.Name}} {
-	{{range .EnumValues}}
-	{{.Name}} = {{.Value}},
+	{{range .EnumValues}}{{.Name}} = {{.Value}},
 	{{end}}
 };
 `
+
+const CppSourceTemplate = `
+
+`
+
+const CppSourceMessageTemplate = ``

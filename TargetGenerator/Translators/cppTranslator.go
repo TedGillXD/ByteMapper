@@ -4,8 +4,8 @@ import (
 	"ProtoCompiler/Compiler/Protobuf"
 	"ProtoCompiler/TargetGenerator/Templates"
 	"bytes"
-	"github.com/google/uuid"
 	"strconv"
+	"strings"
 	"text/template"
 )
 
@@ -72,13 +72,16 @@ func getCppEnumObject(enum *Protobuf.Enum) Templates.CppEnum {
 func getCppMessageObject(message *Protobuf.Message) Templates.CppMessage {
 	// 1. process message fields
 	var fields []Templates.CppMessageField
+	typesString := ""
 	for _, field := range message.Fields {
 		fields = append(fields, Templates.CppMessageField{
 			Name:         field.Name,
 			Type:         field.Type,
 			IsRepeatable: field.IsRepeated,
 		})
+		typesString += field.Type + ","
 	}
+	typesString = strings.TrimSuffix(typesString, ",")
 
 	var nestedMessagesAndEnums []string
 
@@ -94,7 +97,7 @@ func getCppMessageObject(message *Protobuf.Message) Templates.CppMessage {
 		nestedMessagesAndEnums = append(nestedMessagesAndEnums, getCppMessageString(getCppMessageObject(msg)))
 	}
 
-	return Templates.CppMessage{Name: message.Name, MessageFields: fields, NestedMessagesAndEnums: nestedMessagesAndEnums}
+	return Templates.CppMessage{Name: message.Name, MessageFields: fields, NestedMessagesAndEnums: nestedMessagesAndEnums, TypesString: typesString}
 }
 
 func getCppEnumString(cppEnum Templates.CppEnum) string {
@@ -139,13 +142,13 @@ func getCppHeaderString(cppHeader Templates.CppHeader) string {
 	return bufHeader.String()
 }
 
-func GetCppFromProtobuf(protobufObj *Protobuf.Protobuf) (source string, header string) {
+func GetCppFromProtobuf(protobufObj *Protobuf.Protobuf, fileName string) (source string, header string) {
 	// 1. translate the protobuf object for cpp translation
 	translateTypeToCpp(protobufObj)
 
 	// 2. make cpp header file string
 	var cppHeader Templates.CppHeader
-	cppHeader.HeaderGuard = uuid.New().String() // generate uuid as the header guard
+	cppHeader.HeaderGuard = fileName // using file name as header guard
 	cppHeader.Package = protobufObj.Package
 
 	var topMessagesAndEnums []string
@@ -161,6 +164,8 @@ func GetCppFromProtobuf(protobufObj *Protobuf.Protobuf) (source string, header s
 	}
 
 	cppHeader.MessagesAndEnums = topMessagesAndEnums
+
+	// TODO: 3. make cpp source file string
 
 	return "", getCppHeaderString(cppHeader)
 }
