@@ -78,12 +78,9 @@ namespace {{.Package}} {
 
 const CppHeaderMessageTemplate = `
 class {{.Name}} {
-// constructor and destructor
 public:
 	{{.Name}}() = default;
 	~{{.Name}}() = default;
-
-// nested message definition
 public:
 	{{range .NestedMessagesAndEnums}}
 	{{.}}
@@ -92,16 +89,17 @@ public:
 public:
 	void parseFromStream(std::vector<uint8_t>& stream);
 
-// getter and setter
 public:
     {{range .MessageFields}}
     [[nodiscard]] const {{.Type}}& get_{{.Name}}() const;
     void set_{{.Name}}({{.Type}} value);
     {{end}}
 
-// metadata of this message
-private:
-	inline static std::vector<std::size_t> paramOffset = getOffsetWithAlignment<{{.TypesString}}>();
+public:
+	static std::vector<std::size_t> paramOffset;
+	static std::unordered_map<int32_t, std::function<void(MessageBase*, void*)>> fieldHandler;
+	std::unordered_map<int32_t, std::function<void (MessageBase *, void *)>> getFieldHandler() override { return {{.Name}}::fieldHandler; }
+	std::vector<std::size_t> getFieldOffset() override { return {{.Name}}::paramOffset }
 
 private:
 	{{range .MessageFields}}{{.Type}} {{.Name}};
